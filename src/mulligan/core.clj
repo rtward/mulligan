@@ -1,4 +1,5 @@
 (ns mulligan.core
+  (:require [clojure.math.numeric-tower :as math])
   (:use [slingshot.slingshot :only [try+ throw+]]))
 
 (def default-opts {:tries            3
@@ -6,7 +7,9 @@
                    :retry-on-false   false
                    :on-success       nil
                    :on-failure       nil
-                   :on-final-failure nil})
+                   :on-final-failure nil
+                   :wait             0
+                   :backoff          nil})
 
 (defn- parse-args [args]
   (let [possible-opts (->> default-opts keys (into #{}))]
@@ -40,10 +43,19 @@
            :else (Success. result#)))
        (catch Object e# e#))))
 
-(defn handle-failure [opts failure]
+(defn- calculate-wait [attempts opts]
+  (let [wait    (:wait opts)
+        backoff (:backoff opts)]
+    (cond
+      (= backoff :linear) (* wait (+ attempts 1))
+      (= backoff :double) (* wait (math/expt 2 attempts))
+      :default wait)))
+
+(defn handle-failure [opts attempts failure]
   (let [on-failure (:on-failure opts)]
     (when (not (= nil on-failure))
-      (on-failure failure))))
+      (on-failure failure))
+    (Thread/sleep (calculate-wait attempts opts))))
 
 (defn handle-final-failure [opts failure]
   (let [on-failure (:on-final-failure opts)]
@@ -65,11 +77,12 @@
         opts         (:opts parsed-args)
         tries        (:tries opts)
         body         (:body parsed-args)]
-    `(loop [tries# (dec ~tries)]
+    `(loop [tries#    (dec ~tries)
+            attempts# 0]
        (let [result# (try-body ~opts ~body)]
          (if (= (type result#) Success)
            (handle-success ~opts result#)
            (if (zero? tries#)
              (handle-final-failure ~opts result#)
-             (do (handle-failure ~opts result#)
-                 (recur (dec tries#)))))))))
+             (do (handle-failure ~opts attempts# result#)
+                 (recur (dec tries#) (inc attempts#)))))))))

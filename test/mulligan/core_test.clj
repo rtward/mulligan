@@ -109,3 +109,66 @@
         "Exception is eventually thrown")
     (is (instance? Exception failure)
         "The final failure callback was called with the last exception")))
+
+(deftest wait
+  (testing "The wait time given is waited before retrying"
+    (def wait-retry-count 0)
+    (def wait-time-str
+      (with-out-str
+        (time
+          (retry :wait 100
+                 (def wait-retry-count (inc wait-retry-count))
+                 (if (= wait-retry-count 2)
+                    :a
+                    (throw (Exception.)))))))
+    (def wait-time-num (Double. (re-find #"\d+\.\d+" wait-time-str)))
+    (is (> wait-time-num 100))
+    (is (< wait-time-num 200))))
+
+(deftest backoff
+  (testing "The wait does not increase by default"
+    (def bo-retry-count 0)
+    (def bo-time-str
+      (with-out-str
+        (time
+          (retry :tries 5
+                 :wait 100
+                 (def bo-retry-count (inc bo-retry-count))
+                 (if (= bo-retry-count 4)
+                    :a
+                    (throw (Exception.)))))))
+    (def bo-time-num (Double. (re-find #"\d+\.\d+" bo-time-str)))
+    (is (> bo-time-num 300))
+    (is (< bo-time-num 400)))
+  
+  (testing "The wait time increases linearly"
+    (def bo-retry-count 0)
+    (def bo-time-str
+      (with-out-str
+        (time
+          (retry :tries 5
+                 :wait 100
+                 :backoff :linear
+                 (def bo-retry-count (inc bo-retry-count))
+                 (if (= bo-retry-count 4)
+                    :a
+                    (throw (Exception.)))))))
+    (def bo-time-num (Double. (re-find #"\d+\.\d+" bo-time-str)))
+    (is (> bo-time-num 600))
+    (is (< bo-time-num 700)))
+
+  (testing "The wait time increases by doubling each time"
+    (def bo-retry-count 0)
+    (def bo-time-str
+      (with-out-str
+        (time
+          (retry :tries 5
+                 :wait 100
+                 :backoff :double
+                 (def bo-retry-count (inc bo-retry-count))
+                 (if (= bo-retry-count 4)
+                    :a
+                    (throw (Exception.)))))))
+    (def bo-time-num (Double. (re-find #"\d+\.\d+" bo-time-str)))
+    (is (> bo-time-num 700))
+    (is (< bo-time-num 800))))
