@@ -2,6 +2,8 @@
 
 A small clojure library to retry a bit of code if it fails.
 
+Inspired heavily by the perl [Retry](http://search.cpan.org/~tjc/Retry-1.01/lib/Retry.pm) module
+
 ## Usage
 
 Basic usage
