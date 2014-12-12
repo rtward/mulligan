@@ -1,4 +1,4 @@
-(defproject mulligan "0.1.0-SNAPSHOT"
+(defproject mulligan "1.0.0"
   :description "A module to retry an action several times"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
